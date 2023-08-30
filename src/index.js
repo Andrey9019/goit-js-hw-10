@@ -1,55 +1,63 @@
+import { fetchBreeds, fetchCatByBreed } from './cat-api';
 import SlimSelect from 'slim-select';
-import { fetchBreeds } from './cat-api.js';
+import 'slim-select/dist/slimselect.css';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const elem = {
-  select: document.querySelector(`.breed-select`),
-  loader: document.querySelector(`.loader`),
-  error: document.querySelector(`.error`),
-  catInfo: document.querySelector(`.cat-info`),
+const elems = {
+  breedSelect: document.querySelector('.breed-select'),
+  loader: document.querySelector('.loader'),
+  error: document.querySelector('.error'),
+  catInfo: document.querySelector('.cat-info'),
 };
+elems.catInfo.classList.add('is-hidden');
 
-// new SlimSelect({
-//   select: '#selectElement',
-// });
+elems.breedSelect.addEventListener('change', createMarkup);
 
-//name;
-// description
-// temperament
-// id
-// url
+function createMarkup(evt) {
+  elems.loader.classList.replace('is-hidden', 'loader');
+  elems.breedSelect.classList.add('is-hidden');
+  elems.catInfo.classList.add('is-hidden');
 
-async function giveBreedSelect() {
-  const breeds = await fetchBreeds();
-  breeds.forEach(breed => {
-    const option = document.createElement('option');
-    option.value = breed.id;
-    option.textContent = breed.name;
-    elem.select.appendChild(option);
-  });
+  const breedId = evt.currentTarget.value;
+
+  fetchCatByBreed(breedId)
+    .then(data => {
+      elems.loader.classList.replace('loader', 'is-hidden');
+      elems.breedSelect.classList.remove('is-hidden');
+
+      const { url, breeds } = data[0];
+
+      elems.catInfo.innerHTML = `<img src="${url}" alt="${breeds[0].name}" width="400"/>
+      <div class=""><h2>${breeds[0].name}</h2>
+      <p>${breeds[0].description}</p>
+      <p><strong>Temperament:</strong> ${breeds[0].temperament}</p></div>`;
+      elems.catInfo.classList.remove('is-hidden');
+    })
+    .catch(onError);
+}
+updateSelect();
+
+function updateSelect(data) {
+  fetchBreeds(data)
+    .then(data => {
+      elems.loader.classList.replace('loader', 'is-hidden');
+
+      let markSelect = data.map(({ name, id }) => {
+        return `<option value ='${id}'>${name}</option>`;
+      });
+      elems.breedSelect.insertAdjacentHTML('beforeend', markSelect);
+      new SlimSelect({
+        select: elems.breedSelect,
+      });
+    })
+    .catch(onError);
 }
 
-giveBreedSelect();
+function onError() {
+  elems.error.classList.remove('error');
+  elems.loader.classList.replace('loader', 'is-hidden');
 
-elem.select.addEventListener(`change`, handlerSelect);
-
-function handlerSelect(id) {
-  const selectedBreedId = id.target.value;
-  if (selectedBreedId) {
-    const arr = fetchCatByBreed(selectedBreedId);
-    createMarkup(arr);
-  } else {
-    catInfo.innerHTML = '';
-  }
-}
-
-function createMarkup(arr) {
-  return arr
-    .map(({ name, description, temperament, image: { id, url } }) => {})
-    .join(
-      `<option>${name}</option>
-      <option>${description}</option>
-      <option>${temperament}</option>
-      <option>${id}</option>
-      <option>Option 3</option>`
-    );
+  Notify.failure(
+    'Ой! Щось пішло не так! Спробуйте перезавантажити сторінку або виберіть іншу породу котів!'
+  );
 }
